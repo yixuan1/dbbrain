@@ -1,0 +1,797 @@
+SQL 模板,数据库,执行次数,总耗时(s),最大执行时间(s),平均执行时间(s),最大锁等待时间(s),平均锁等待时间(s),最大扫描行数,平均扫描行数,最大返回行数,平均返回行数
+"select id, orderid, ticketcode, seatcode, seatgroupcode
+	, seatrow, seatcol, saleprice, cinemaprice, channelprice
+	, circuitfee, subsidyfee, channelfee, servicefee, submitprice
+	, connectfee, barcode
+from cec_ticketorderitem t1
+where exists (
+	select id
+	from (
+		select t1.id, channelshowid, type, t1.code, cinemaordercode
+			, channelordercode, mobile, createtime, expiretime, paytime
+			, confirmtime, revoketime, ticketcount, amount, cinemaamount
+			, channelamount, submitamount, connectfee, circuitfee, subsidyfee
+			, channelfee, servicefee, t1.status, submitchannelid, submitchannelname
+			, cinemaid, channelid, showcode, channelshowcode, hallid
+			, (
+				select code
+				from cec_hall
+				where id = t1.hallid
+			) as hallcode, filmid, filmcode, showtype, showtime
+			, (
+				select expiretime
+				from cec_channelshow
+				where id = t1.channelshowid
+			) as showexpiretime, minprice, stdprice, t2.code as cinemacode, t2.name as cinemaname
+			, (
+				select name
+				from cec_channel
+				where id = t1.channelid
+			) as channelname
+			, (
+				select name
+				from cec_hall
+				where id = t1.hallid
+			) as hallname
+			, (
+				select name
+				from cec_film
+				where id = t1.filmid
+			) as filmname
+		from cec_ticketorder t1, cec_cinema t2
+		where t1.cinemaid = t2.id
+			and ((confirmtime >= ?
+					and confirmtime <= ?)
+				or (revoketime >= ?
+					and revoketime <= ?))
+			and instr(?, t2.code) > ?
+		union all
+		select t1.id, channelshowid, type, t1.code, cinemaordercode
+			, channelordercode, mobile, createtime, expiretime, paytime
+			, confirmtime, revoketime, ticketcount, amount, cinemaamount
+			, channelamount, submitamount, connectfee, circuitfee, subsidyfee
+			, channelfee, servicefee, t1.status, submitchannelid, submitchannelname
+			, cinemaid, channelid, showcode, channelshowcode, hallid
+			, (
+				select code
+				from cec_hall
+				where id = t1.hallid
+			) as hallcode, filmid, filmcode, showtype, showtime
+			, (
+				select expiretime
+				from cec_channelshow
+				where id = t1.channelshowid
+			) as showexpiretime, minprice, stdprice, t2.code as cinemacode, t2.name as cinemaname
+			, (
+				select name
+				from cec_channel
+				where id = t1.channelid
+			) as channelname
+			, (
+				select name
+				from cec_hall
+				where id = t1.hallid
+			) as hallname
+			, (
+				select name
+				from cec_film
+				where id = t1.filmid
+			) as filmname
+		from cec_ticketorder t1, cec_cinema t2
+		where t1.cinemaid = t2.id
+			and (confirmtime >= ?
+				or revoketime >= ?)
+			and instr(?, t2.code) > ?
+	) t2
+	where t1.orderid = t2.id
+)",ngc,253,817.040637,4.091975,3.22941,0.001045,0.000552,2697593,2581862.779,8,0.438735
+"select a.`name`, a.`code`, sync_info.synctime
+from (
+	select cinema.name as name, cinema.code as code, cinema.id
+	from cec_cinema cinema
+	where cinema.salable = ?
+		and cinema.status = ?
+		and not exists (
+			select ?
+			from cec_showsynclog
+			where status <> ?
+				and cinemaid = cinema.id
+				and synctime > ?
+		)
+) a
+	left join (
+		select cinemaid, max(synctime) as synctime
+		from cec_showsynclog
+		where status != ?
+		group by cinemaid
+		having max(synctime) <= ?
+	) sync_info
+	on a.id = sync_info.cinemaid",ngc,1,81.101782,81.101782,81.101782,0.000151,0.000151,9180151,9180151,164,164
+"select uuid(), channelcode, channelname, publishdate as statdate, ordersourcename
+	, ordersourcecode, sum(case 
+		when kind = '1' then 1
+		else -1
+	end) as ticketcounttotal, sum(submitamount) as amounttotal
+	, sum(case 
+		when showtype = '1' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecount2d, sum(case 
+		when showtype = '2' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecount3d
+	, sum(case 
+		when showtype = '3' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecountmax2d, sum(case 
+		when showtype = '4' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecountmax3d
+	, sum(case 
+		when showtype = '6' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecountdmax, sum(case 
+		when showtype = '7' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecount4d
+	, sum(case 
+		when showtype = '8' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecountdmax2d, sum(case 
+		when showtype = '9' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecountdmax3d
+	, sum(case 
+		when showtype = '1' then submitamount
+		else 0
+	end) as amount2d, sum(case 
+		when showtype = '2' then submitamount
+		else 0
+	end) as amount3d
+	, sum(case 
+		when showtype = '3' then submitamount
+		else 0
+	end) as amountmax2d, sum(case 
+		when showtype = '4' then submitamount
+		else 0
+	end) as amountmax3d
+	, sum(case 
+		when showtype = '6' then submitamount
+		else 0
+	end) as amountdmax, sum(case 
+		when showtype = '7' then submitamount
+		else 0
+	end) as amount4d
+	, sum(case 
+		when showtype = '8' then submitamount
+		else 0
+	end) as amountdmax2d, sum(case 
+		when showtype = '9' then submitamount
+		else 0
+	end) as amountdmax3d
+from cec_ticketorderstatnew
+where date_format(publishdate, '%y-%m-%d') = ?
+group by channelcode, ordersourcecode",ngc,2,52.068878,44.729035,26.034439,0.000378,0.00026,7050547,4743040.5,39,19.5
+"select *
+from (
+	select uuid() as id, cinemacode as cinema_code, cinemaname as cinema_name, hallid as hall_id, hallname as hall_name
+		, filmid as film_id, filmname as film_name, code as ngc_order_code, cinemaordercode as cinema_order_code, channelordercode as channel_order_code
+		, ticketorderitemcode as ticket_code, type, kind as refund_type, showtype as show_type, confirmtime as confirm_time
+		, revoketime as revoke_time, channelname as net_sale_name, channelcode as net_sale_code
+		, case 
+			when ordersourcename = ? then ?
+			else ordersourcecode
+		end as ngc_channel_code, ordersourcename as ngc_channel_name, amount, cinemaamount as cinema_amount, channelamount as channel_amount
+		, submitamount as submit_amount, connectfee as connect_fee, circuitfee as circuitt_fee, subsidyfee as subsidyt_fee, channelfee as channet_fee
+		, servicefee as servicet_fee, publishdate as publish_date, ngconfirmtime as ng_confirm_time, mobile, statdate as stat_date
+		, case 
+			when kind = ? then revoketime
+			else ngconfirmtime
+		end as reporttime
+		, case 
+			when kind = ? then ?
+			else ?
+		end as ticket_num
+	from (
+		select a.*, b.name as filmname, ? as provider, e.name as hallname
+			, case 
+				when a.submitchannelid is null
+				or a.submitchannelid = ? then ?
+				else c.name
+			end as ordersourcename, c.onlinesalecode as ordersourcecode
+			, case 
+				when a.submitchannelid is null
+				or a.submitchannelid = ? then c.name
+				else a.submitchannelname
+			end as channelname
+			, case 
+				when a.submitchannelid is null
+				or a.submitchannelid = ? then c.onlinesalecode
+				else a.submitchannelid
+			end as channelcode, d.code as cinemacode, d.name as cinemaname
+		from (
+			select a.filmid, a.channelid, a.cinemaid, a.hallid, a.submitchannelid
+				, a.submitchannelname, a.code as code, a.cinemaordercode as cinemaordercode, a.channelordercode as channelordercode, a.type as type
+				, case 
+					when a.confirmtime >= ?
+					and a.confirmtime < ? then ?
+					else ?
+				end as kind, a.showtype as showtype, a.mobile as mobile, a.paytime as confirmtime
+				, case 
+					when a.confirmtime >= ?
+					and a.confirmtime < ? then null
+					else a.revoketime
+				end as revoketime
+				, case 
+					when a.confirmtime >= ?
+					and a.confirmtime < ? then g.saleprice
+					else ? * g.saleprice
+				end as amount
+				, case 
+					when a.confirmtime >= ?
+					and a.confirmtime < ? then g.cinemaprice
+					else ? * g.cinemaprice
+				end as cinemaamount
+				, case 
+					when a.confirmtime >= ?
+					and a.confirmtime < ? then g.channelprice
+					else ? * g.channelprice
+				end as channelamount
+				, case 
+					when a.confirmtime >= ?
+					and a.confirmtime < ? then g.submitprice
+					else ? * g.submitprice
+				end as submitamount
+				, case 
+					when a.confirmtime >= ?
+					and a.confirmtime < ? then g.connectfee
+					else ? * g.connectfee
+				end as connectfee
+				, case 
+					when a.confirmtime >= ?
+					and a.confirmtime < ? then g.circuitfee
+					else ? * g.circuitfee
+				end as circuitfee
+				, case 
+					when a.confirmtime >= ?
+					and a.confirmtime < ? then g.subsidyfee
+					else ? * g.subsidyfee
+				end as subsidyfee
+				, case 
+					when a.confirmtime >= ?
+					and a.confirmtime < ? then g.channelfee
+					else ? * g.channelfee
+				end as channelfee
+				, case 
+					when a.confirmtime >= ?
+					and a.confirmtime < ? then g.servicefee
+					else ? * g.servicefee
+				end as servicefee
+				, case 
+					when date_format(?, '%h') >= ?
+					and date_format(?, '%h') < ? then date_format(date_add(?, interval ? day), '%y-%m-%d')
+					else date_format(?, '%y-%m-%d')
+				end as statdate, g.ticketcode as ticketorderitemcode, a.showtime as publishdate, a.confirmtime as ngconfirmtime
+			from cec_ticketorder a, cec_ticketorderitem g
+			where a.id = g.orderid
+				and ((a.confirmtime >= ?
+						and a.confirmtime < ?)
+					or (a.revoketime >= ?
+						and a.revoketime < ?))
+				and (a.status = ?)
+			order by a.confirmtime
+		) a
+			join cec_film b on a.filmid = b.id
+			join cec_channel c on a.channelid = c.id
+			join cec_cinema d on a.cinemaid = d.id
+			join cec_hall e on a.hallid = e.id
+	) t1
+) t1
+union all
+select uuid() as id, cinemacode as cinema_code, cinemaname as cinema_name, hallid as hall_id, hallname as hall_name
+	, filmid as film_id, filmname as film_name, code as ngc_order_code, cinemaordercode as cinema_order_code, channelordercode as channel_order_code
+	, ticketorderitemcode as ticket_code, type, kind as refund_type, showtype as show_type, confirmtime as confirm_time
+	, revoketime as revoke_time, channelname as net_sale_name, channelcode as net_sale_code
+	, case 
+		when ordersourcename = ? then ?
+		else ordersourcecode
+	end as ngc_channel_code, ordersourcename as ngc_channel_name, amount, cinemaamount as cinema_amount, channelamount as channel_amount
+	, submitamount as submit_amount, connectfee as connect_fee, circuitfee as circuitt_fee, subsidyfee as subsidyt_fee, channelfee as channet_fee
+	, servicefee as servicet_fee, publishdate as publish_date, ngconfirmtime as ng_confirm_time, mobile, statdate as stat_date
+	, case 
+		when kind = ? then revoketime
+		else ngconfirmtime
+	end as reporttime
+	, case 
+		when kind = ? then ?
+		else ?
+	end as ticket_num
+from (
+	select d.id as cinemaid, e.id as hallid, a.filmid as filmid, b.name as filmname, ? as provider
+		, a.code as code, a.cinemaordercode as cinemaordercode, a.channelordercode as channelordercode, a.type as type, ? as kind
+		, a.showtype as showtype, a.mobile as mobile, a.paytime as confirmtime, a.revoketime as revoketime
+		, ? * g.saleprice as amount, ? * g.cinemaprice as cinemaamount
+		, ? * g.channelprice as channelamount, ? * g.submitprice as submitamount
+		, ? * g.connectfee as connectfee, ? * g.circuitfee as circuitfee
+		, ? * g.subsidyfee as subsidyfee, ? * g.channelfee as channelfee
+		, ? * g.servicefee as servicefee
+		, case 
+			when date_format(?, '%h') >= ?
+			and date_format(?, '%h') < ? then date_format(date_add(?, interval ? day), '%y-%m-%d')
+			else date_format(?, '%y-%m-%d')
+		end as statdate, e.name as hallname, g.ticketcode as ticketorderitemcode, a.showtime as publishdate, a.confirmtime as ngconfirmtime
+		, case 
+			when a.submitchannelid is null
+			or a.submitchannelid = ? then ?
+			else c.name
+		end as ordersourcename, c.onlinesalecode as ordersourcecode
+		, case 
+			when a.submitchannelid is null
+			or a.submitchannelid = ? then c.name
+			else a.submitchannelname
+		end as channelname
+		, case 
+			when a.submitchannelid is null
+			or a.submitchannelid = ? then c.onlinesalecode
+			else a.submitchannelid
+		end as channelcode, d.code as cinemacode, d.name as cinemaname
+	from cec_ticketorder a, cec_film b, cec_channel c, cec_cinema d, cec_hall e, cec_ticketorderitem g
+	where a.filmid = b.id
+		and a.channelid = c.id
+		and a.cinemaid = d.id
+		and a.hallid = e.id
+		and a.id = g.orderid
+		and (a.confirmtime >= ?
+			and a.confirmtime < ?
+			and a.revoketime >= ?
+			and a.revoketime < ?
+			and a.status = ?)
+	union all
+	select d.id as cinemaid, e.id as hallid, a.filmid as filmid, b.name as filmname, ? as provider
+		, a.code as code, a.cinemaordercode as cinemaordercode, a.channelordercode as channelordercode, a.type as type, ? as kind
+		, a.showtype as showtype, a.mobile as mobile, a.paytime as confirmtime, t.refunddatetime as revoketime
+		, ? * g.saleprice as amount, ? * g.cinemaprice as cinemaamount
+		, ? * g.channelprice as channelamount, ? * g.submitprice as submitamount
+		, ? * g.connectfee as connectfee, ? * g.circuitfee as circuitfee
+		, ? * g.subsidyfee as subsidyfee, ? * g.channelfee as channelfee
+		, ? * g.servicefee as servicefee
+		, case 
+			when date_format(?, '%h') >= ?
+			and date_format(?, '%h') < ? then date_format(date_add(?, interval ? day), '%y-%m-%d')
+			else date_format(?, '%y-%m-%d')
+		end as statdate, e.name as hallname, g.ticketcode as ticketorderitemcode, a.showtime as publishdate, a.confirmtime as ngconfirmtime
+		, case 
+			when a.submitchannelid is null
+			or a.submitchannelid = ? then ?
+			else c.name
+		end as ordersourcename, c.onlinesalecode as ordersourcecode
+		, case 
+			when a.submitchannelid is null
+			or a.submitchannelid = ? then c.name
+			else a.submitchannelname
+		end as channelname
+		, case 
+			when a.submitchannelid is null
+			or a.submitchannelid = ? then c.onlinesalecode
+			else a.submitchannelid
+		end as channelcode, d.code as cinemacode, d.name as cinemaname
+	from cec_ticketorder a, cec_cinemarevoketicket t, cec_film b, cec_channel c, cec_cinema d, cec_hall e, cec_ticketorderitem g
+	where a.code = t.centerordercode
+		and a.filmid = b.id
+		and a.channelid = c.id
+		and a.cinemaid = d.id
+		and a.hallid = e.id
+		and a.id = g.orderid
+		and g.ticketcode = t.ticketcode
+		and (t.refunddatetime >= ?
+			and t.refunddatetime < ?
+			and a.status = ?)
+) t1",ngc,9,42.826217,12.441472,4.758469,0.001851,0.001287,124409,103473,12410,10308
+"select a.*, b.carduseflg, b.memberspecial, b.memberprices, b.sessioncode
+from cec_channelshow a, `cec_show` b
+where a.`cinemaid` = b.`cinemaid`
+	and a.`showcode` = b.`code`
+	and a.cinemaid = ?
+	and a.channelid = ?
+	and a.status = ?
+	and a.stopselltime >= now()
+	and a.showtime >= ?
+order by a.showtime desc",ngc,25,26.171515,1.31338,1.046861,0.000148,0.000103,256675,254010.76,424,279.4
+"delete from cec_channelshow
+where expiretime <= ?",ngc,1,25.98901,25.98901,25.98901,0.000041,0.000041,10510545,10510545,0,0
+"delete from cec_showsynclog
+where synctime <= ?",ngc,1,21.247105,21.247105,21.247105,0.000067,0.000067,142567,142567,0,0
+"select a.*, d.id as cinemaid, e.id as hallid, a.filmid as filmid, b.name as filmname
+	, ? as provider, e.name as hallname
+	, case 
+		when a.submitchannelid is null
+		or a.submitchannelid = ? then ?
+		else c.name
+	end as ordersourcename, c.onlinesalecode as ordersourcecode
+	, case 
+		when a.submitchannelid is null
+		or a.submitchannelid = ? then c.name
+		else a.submitchannelname
+	end as channelname
+	, case 
+		when a.submitchannelid is null
+		or a.submitchannelid = ? then c.onlinesalecode
+		else a.submitchannelid
+	end as channelcode, d.code as cinemacode, d.name as cinemaname
+from (
+	select a.filmid, a.channelid, a.cinemaid, a.hallid, a.submitchannelid
+		, a.submitchannelname, a.code as code, a.cinemaordercode as cinemaordercode, a.channelordercode as channelordercode, a.type as type
+		, case 
+			when a.confirmtime >= ?
+			and a.confirmtime < ? then ?
+			else ?
+		end as kind, a.showtype as showtype, a.mobile as mobile, a.paytime as confirmtime
+		, case 
+			when a.confirmtime >= ?
+			and a.confirmtime < ? then null
+			else a.revoketime
+		end as revoketime
+		, case 
+			when a.confirmtime >= ?
+			and a.confirmtime < ? then g.saleprice
+			else ? * g.saleprice
+		end as amount
+		, case 
+			when a.confirmtime >= ?
+			and a.confirmtime < ? then g.cinemaprice
+			else ? * g.cinemaprice
+		end as cinemaamount
+		, case 
+			when a.confirmtime >= ?
+			and a.confirmtime < ? then g.channelprice
+			else ? * g.channelprice
+		end as channelamount
+		, case 
+			when a.confirmtime >= ?
+			and a.confirmtime < ? then g.submitprice
+			else ? * g.submitprice
+		end as submitamount
+		, case 
+			when a.confirmtime >= ?
+			and a.confirmtime < ? then g.connectfee
+			else ? * g.connectfee
+		end as connectfee
+		, case 
+			when a.confirmtime >= ?
+			and a.confirmtime < ? then g.circuitfee
+			else ? * g.circuitfee
+		end as circuitfee
+		, case 
+			when a.confirmtime >= ?
+			and a.confirmtime < ? then g.subsidyfee
+			else ? * g.subsidyfee
+		end as subsidyfee
+		, case 
+			when a.confirmtime >= ?
+			and a.confirmtime < ? then g.channelfee
+			else ? * g.channelfee
+		end as channelfee
+		, case 
+			when a.confirmtime >= ?
+			and a.confirmtime < ? then g.servicefee
+			else ? * g.servicefee
+		end as servicefee, date_format(?, '%y-%m-%d') as statdate, g.ticketcode as ticketorderitemcode
+		, a.showtime as publishdate, a.confirmtime as ngconfirmtime
+	from cec_ticketorder a, cec_ticketorderitem g
+	where a.id = g.orderid
+		and ((a.confirmtime >= ?
+				and a.confirmtime < ?)
+			or (a.revoketime >= ?
+				and a.revoketime < ?))
+		and (a.status = ?)
+	order by a.confirmtime
+	limit ?, ?
+) a
+	join cec_film b on a.filmid = b.id
+	join cec_channel c on a.channelid = c.id
+	join cec_cinema d on a.cinemaid = d.id
+	join cec_hall e on a.hallid = e.id",ngc,12,18.950389,5.268857,1.579199,0.000415,0.000375,1452091,1398157.167,5000,4602
+"delete t1, t2
+from cec_ticketorder t1
+	inner join cec_ticketorderitem t2 on t1.id = t2.orderid
+where t1.expiretime <= ?
+	and (t1.status = ?
+		or (t1.status = ?
+			and t1.paytime is null))",ngc,1,10.727854,10.727854,10.727854,0.000064,0.000064,1381495,1381495,0,0
+"select uuid(), cinemaid, publishdate as statdate, cinemacode, cinemaname
+	, sum(case 
+		when kind = '1' then 1
+		else -1
+	end) as ticketcounttotal, sum(submitamount) as amounttotal
+	, sum(case 
+		when showtype = '1' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecount2d, sum(case 
+		when showtype = '2' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecount3d
+	, sum(case 
+		when showtype = '3' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecountmax2d, sum(case 
+		when showtype = '4' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecountmax3d
+	, sum(case 
+		when showtype = '6' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecountdmax, sum(case 
+		when showtype = '7' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecount4d
+	, sum(case 
+		when showtype = '8' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecountdmax2d, sum(case 
+		when showtype = '9' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecountdmax3d
+	, sum(case 
+		when channelcode = '20000001' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salecountdy, sum(case 
+		when showtype = '1' then submitamount
+		else 0
+	end) as amount2d
+	, sum(case 
+		when showtype = '2' then submitamount
+		else 0
+	end) as amount3d, sum(case 
+		when showtype = '3' then submitamount
+		else 0
+	end) as amountmax2d
+	, sum(case 
+		when showtype = '4' then submitamount
+		else 0
+	end) as amountmax3d, sum(case 
+		when showtype = '6' then submitamount
+		else 0
+	end) as amountdmax
+	, sum(case 
+		when showtype = '7' then submitamount
+		else 0
+	end) as amount4d, sum(case 
+		when showtype = '8' then submitamount
+		else 0
+	end) as amountdmax2d
+	, sum(case 
+		when showtype = '9' then submitamount
+		else 0
+	end) as amountdmax3d, sum(case 
+		when channelcode = '20000001' then submitamount
+		else 0
+	end) as amountdy
+from cec_ticketorderstatnew
+where date_format(publishdate, '%y-%m-%d') = ?
+group by cinemaid",ngc,2,7.491848,5.125209,3.745924,0.000156,0.000154,7050547,4743974.5,973,486.5
+"select uuid(), cinemaid, publishdate as statdate, channelname, channelcode as netsalechannelcode
+	, sum(case 
+		when kind = '1' then 1
+		else 0
+	end) as tickettotal, sum(case 
+		when kind = '1' then submitamount
+		else 0
+	end) as amounttotal
+	, sum(case 
+		when kind = '2' then 1
+		else 0
+	end) as revoketickettotal, sum(case 
+		when kind = '2' then submitamount
+		else 0
+	end) as revokeamounttotal
+	, sum(case 
+		when kind = '1' then 1
+		else -1
+	end) as actualtickettotal, sum(submitamount) as actualamount
+	, sum(case 
+		when showtype = '1' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as sale2dticket, sum(case 
+		when showtype = '2' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as sale3dticket
+	, sum(case 
+		when showtype = '3' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salemax2dticket, sum(case 
+		when showtype = '4' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as salemax3dticket
+	, sum(case 
+		when showtype = '6' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as saledmaxticket, sum(case 
+		when showtype = '7' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as sale4dticket
+	, sum(case 
+		when showtype = '8' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as saledmax2dticket, sum(case 
+		when showtype = '9' then 
+			case 
+				when kind = '1' then 1
+				else -1
+			end
+		else 0
+	end) as saledmax3dticket
+	, sum(case 
+		when showtype = '1' then 
+			case 
+				when kind = '2' then 1
+				else 0
+			end
+		else 0
+	end) as rvk2dticket, sum(case 
+		when showtype = '2' then 
+			case 
+				when kind = '2' then 1
+				else 0
+			end
+		else 0
+	end) as rvk3dticket
+	, sum(case 
+		when showtype = '3' then 
+			case 
+				when kind = '2' then 1
+				else 0
+			end
+		else 0
+	end) as rvkmax2dticket, sum(case 
+		when showtype = '4' then 
+			case 
+				when kind = '2' then 1
+				else 0
+			end
+		else 0
+	end) as rvkmax3dticket
+	, sum(case 
+		when showtype = '6' then 
+			case 
+				when kind = '2' then 1
+				else 0
+			end
+		else 0
+	end) as rvkdmaxticket, sum(case 
+		when showtype = '7' then 
+			case 
+				when kind = '2' then 1
+				else 0
+			end
+		else 0
+	end) as rvk4dticket
+	, sum(case 
+		when showtype = '8' then 
+			case 
+				when kind = '2' then 1
+				else 0
+			end
+		else 0
+	end) as rvkdmax2dticket, sum(case 
+		when showtype = '9' then 
+			case 
+				when kind = '2' then 1
+				else 0
+			end
+		else 0
+	end) as rvkdmax3dticket
+from cec_ticketorderstatnew
+where date_format(publishdate, '%y-%m-%d') = ?
+group by cinemaid, channelcode",ngc,2,7.088611,4.820266,3.544306,0.000176,0.000175,7050547,4745205.5,2204,1102
+"delete from cec_qz_tasklist
+where createtime < ?",ngc,1,1.478245,1.478245,1.478245,0.000047,0.000047,427859,427859,0,0
+"delete from cec_showupdatelog
+where createdate <= ?",ngc,1,1.476128,1.476128,1.476128,0.000227,0.000227,11156,11156,0,0
+"delete from cec_show
+where expiretime <= ?",ngc,1,1.438481,1.438481,1.438481,0.000029,0.000029,31805,31805,0,0
+"select a.*, b.carduseflg, b.memberspecial, b.memberprices, b.sessioncode
+from cec_channelshow a, `cec_show` b
+where a.`cinemaid` = b.`cinemaid`
+	and a.`showcode` = b.`code`
+	and a.cinemaid = ?
+	and a.channelid = ?
+	and (a.status = ?
+		or (a.status = ?
+			and a.stopselltime < now()))
+	and a.showtime >= ?
+order by a.showtime desc",ngc,1,1.038618,1.038618,1.038618,0.000102,0.000102,252951,252951,35,35
